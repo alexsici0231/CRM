@@ -28,6 +28,7 @@ import {
   users,
 } from '@/lib/sample-data';
 import { applyLeadAttribution, getFollowUpsDueToday, getRecentMissedCalls, monthlyRevenue } from '@/lib/business-logic';
+import { summarizeMarketing } from '@/lib/integrations/marketing-summary';
 import { sendReviewRequest, sendSmsNotification } from '@/lib/twilio';
 import type {
   AppUser,
@@ -45,7 +46,7 @@ import type {
   ServiceType,
 } from '@/types/database';
 
-type PageKey = 'dashboard' | 'leads' | 'lead-detail' | 'jobs' | 'fleet' | 'calls' | 'reviews' | 'reports' | 'settings';
+type PageKey = 'dashboard' | 'leads' | 'lead-detail' | 'jobs' | 'fleet' | 'calls' | 'reviews' | 'reports' | 'marketing' | 'settings';
 type Activity = { id: string; created_at: string; text: string; tone: 'info' | 'success' | 'warning' | 'danger' };
 type CrmData = { leads: Lead[]; jobs: Job[]; fleetClients: FleetClient[]; calls: Call[]; reviews: Review[]; activeUserId: string; activities: Activity[] };
 
@@ -58,6 +59,7 @@ const nav = [
   { href: '/calls', key: 'calls', label: 'Звонки', icon: Phone },
   { href: '/reviews', key: 'reviews', label: 'Отзывы', icon: Star },
   { href: '/reports', key: 'reports', label: 'Отчеты', icon: BarChart2 },
+  { href: '/marketing', key: 'marketing', label: 'Маркетинг', icon: BarChart2 },
 ] as const;
 
 const statusColors: Record<string, string> = {
@@ -220,7 +222,7 @@ function DataTable({ title, rows }: { title: string; rows: Array<Array<React.Rea
       <div className="border-b p-4"><h2 className="font-bold">{title}</h2></div>
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm">
-          <tbody>{rows.map((row, i) => <tr key={i} className="border-b last:border-0">{row.map((cell, j) => <td key={j} className="whitespace-nowrap px-4 py-3">{cell}</td>)}</tr>)}</tbody>
+          <tbody>{rows.map((row, i) => <tr key={i} className="border-b last:border-0">{row.map((cell, j) => <td key={j} className="px-4 py-3 align-top">{cell}</td>)}</tr>)}</tbody>
         </table>
       </div>
     </div>
@@ -615,6 +617,66 @@ function ReportsPage({ data }: { data: CrmData }) {
   );
 }
 
+function MarketingPage({ data }: { data: CrmData }) {
+  const summary = summarizeMarketing();
+  const health = [
+    { label: 'Meta Ads', status: 'mock', missingEnv: ['META_ACCESS_TOKEN', 'META_AD_ACCOUNT_ID'] },
+    { label: 'Google Ads', status: 'mock', missingEnv: ['GOOGLE_ADS_CUSTOMER_ID', 'GOOGLE_ADS_DEVELOPER_TOKEN', 'GOOGLE_ADS_REFRESH_TOKEN'] },
+    { label: 'CallRail', status: 'mock', missingEnv: ['CALLRAIL_API_KEY', 'CALLRAIL_ACCOUNT_ID', 'CALLRAIL_COMPANY_ID'] },
+    { label: 'Twilio', status: 'mock', missingEnv: ['TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN', 'TWILIO_PHONE_NUMBER'] },
+    { label: 'Google Business Profile', status: 'mock', missingEnv: ['GOOGLE_BUSINESS_ACCOUNT_ID', 'GOOGLE_BUSINESS_LOCATION_IDS'] },
+  ];
+  const sourceRevenue = Object.entries(data.leads.reduce<Record<string, { leads: number; revenue: number }>>((acc, lead) => {
+    const key = sourceLabel[lead.source];
+    acc[key] = acc[key] || { leads: 0, revenue: 0 };
+    acc[key].leads += 1;
+    acc[key].revenue += lead.actual_value || lead.estimated_value || 0;
+    return acc;
+  }, {})).map(([source, value]) => ({ source, ...value }));
+
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-3xl font-black">Маркетинг и атрибуция</h2>
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={() => fetch('/api/integrations/meta/sync')}>Sync Meta</Button>
+          <Button variant="secondary" onClick={() => fetch('/api/integrations/google-ads/sync')}>Sync Google</Button>
+          <Button variant="secondary" onClick={() => fetch('/api/integrations/callrail/sync')}>Sync CallRail</Button>
+        </div>
+      </div>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+        <Card title="Расход рекламы" value={money(summary.spend)} sub="Meta + Google mock/live" />
+        <Card title="Лиды" value={String(summary.leads)} sub="Из рекламных кампаний" />
+        <Card title="CPL" value={money(summary.cpl)} sub="Cost per lead" />
+        <Card title="Записанные работы" value={String(summary.bookedJobs)} sub={`CPBJ ${money(summary.cpBookedJob)}`} />
+        <Card title="ROAS" value={`${summary.roas.toFixed(1)}x`} sub={money(summary.revenue)} />
+      </div>
+      <div className="grid gap-4 xl:grid-cols-2">
+        <div className="card p-5">
+          <h3 className="font-bold">Выручка по источникам</h3>
+          <div className="mt-4 h-72"><ResponsiveContainer><BarChart data={sourceRevenue}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="source" hide /><YAxis /><Tooltip formatter={(value) => money(Number(value))} /><Bar dataKey="revenue" fill="#1F4E79" /></BarChart></ResponsiveContainer></div>
+        </div>
+        <DataTable title="Статус интеграций" rows={health.map((item) => [
+          item.label,
+          <Badge key={item.label} tone={item.status === 'connected' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}>{item.status}</Badge>,
+          item.missingEnv.length ? item.missingEnv.join(', ') : 'Ready',
+        ])} />
+      </div>
+      <DataTable title="Эффективность кампаний" rows={summary.metrics.map((metric) => [
+        metric.provider === 'meta_ads' ? 'Meta' : 'Google',
+        metric.campaign_name,
+        metric.location,
+        money(metric.spend),
+        metric.leads,
+        metric.booked_jobs,
+        money(metric.revenue),
+        `${metric.spend ? (metric.revenue / metric.spend).toFixed(1) : '0.0'}x`,
+      ])} />
+      <DataTable title="Tracking numbers" rows={summary.trackingNumbers.map((number) => [number.phone_number, locationLabel[number.location], sourceLabel[number.source], number.label, number.active ? 'Active' : 'Off'])} />
+    </div>
+  );
+}
+
 function SettingsPage({ setData }: { setData: React.Dispatch<React.SetStateAction<CrmData>> }) {
   return (
     <div className="grid gap-4 xl:grid-cols-2">
@@ -650,6 +712,7 @@ export function TruckCrmPage({ page, leadId }: { page: PageKey; leadId?: string 
       case 'calls': return <CallsPage data={data} setData={setData} log={log} user={user} />;
       case 'reviews': return <ReviewsPage data={data} setData={setData} log={log} />;
       case 'reports': return <ReportsPage data={data} />;
+      case 'marketing': return <MarketingPage data={data} />;
       case 'settings': return <SettingsPage setData={setData} />;
       default: return <Dashboard data={data} user={user} />;
     }

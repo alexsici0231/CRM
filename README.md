@@ -14,6 +14,24 @@
 - Рабочий демо-режим через `localStorage`: добавление лидов, создание работ, fleet-клиентов, изменение статусов, обработка пропущенных звонков и ответы на отзывы без внешней базы.
 - Переключение ролей в интерфейсе: владелец и администратор видят все, shop manager видит свою локацию.
 - Центр внимания: missed calls, follow-up на сегодня, unpaid jobs и отзывы без ответа.
+- Marketing dashboard `/marketing` с mock/live-ready метриками Meta Ads, Google Ads, CallRail tracking numbers, CPL и ROAS.
+- API endpoints для будущих sync jobs и webhooks.
+
+## Интеграции
+
+Подробный чеклист находится в `docs/integrations.md`.
+
+Подготовлены endpoints:
+
+- `GET /api/integrations/health`
+- `GET|POST /api/integrations/meta/sync`
+- `GET|POST /api/integrations/google-ads/sync`
+- `GET|POST /api/integrations/callrail/sync`
+- `GET|POST /api/integrations/google-business/sync`
+- `GET /api/integrations/marketing-summary`
+- `POST /api/integrations/twilio/send-sms`
+- `POST /api/webhooks/callrail`
+- `POST /api/webhooks/twilio`
 
 ## Запуск
 

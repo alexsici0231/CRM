@@ -33,6 +33,9 @@ export type ContractType = 'monthly' | 'per_service' | 'none';
 export type FleetStatus = 'active' | 'inactive' | 'prospect';
 export type CallOutcome = 'answered' | 'missed' | 'voicemail' | 'converted';
 export type ReviewPlatform = 'google' | 'yelp' | 'facebook' | 'other';
+export type IntegrationProvider = 'meta_ads' | 'google_ads' | 'callrail' | 'twilio' | 'google_business';
+export type IntegrationStatus = 'connected' | 'missing_env' | 'mock' | 'error';
+export type SyncStatus = 'success' | 'warning' | 'error';
 
 export interface AppUser {
   id: string;
@@ -139,6 +142,93 @@ export interface MonthlyReport {
   created_at: string;
 }
 
+export interface IntegrationAccount {
+  id: string;
+  provider: IntegrationProvider;
+  external_account_id: string | null;
+  label: string;
+  status: IntegrationStatus;
+  last_sync_at: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface TrackingNumberRow {
+  id: string;
+  phone_number: string;
+  location: Location;
+  source: LeadSource;
+  provider: IntegrationProvider;
+  label: string;
+  active: boolean;
+  created_at: string;
+}
+
+export interface AdCampaign {
+  id: string;
+  provider: IntegrationProvider;
+  external_campaign_id: string;
+  account_id: string;
+  campaign_name: string;
+  location: ReportLocation;
+  active: boolean;
+  created_at: string;
+}
+
+export interface AdDailyMetric {
+  id: string;
+  provider: IntegrationProvider;
+  campaign_id: string | null;
+  metric_date: string;
+  spend: number;
+  impressions: number;
+  clicks: number;
+  leads: number;
+  booked_jobs: number;
+  revenue: number;
+  raw_payload: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface LeadAttribution {
+  id: string;
+  lead_id: string | null;
+  source: LeadSource;
+  utm_source: string | null;
+  utm_medium: string | null;
+  utm_campaign: string | null;
+  utm_adset: string | null;
+  utm_ad: string | null;
+  gclid: string | null;
+  fbclid: string | null;
+  landing_page: string | null;
+  first_touch_at: string | null;
+  last_touch_at: string | null;
+  created_at: string;
+}
+
+export interface IntegrationSyncLog {
+  id: string;
+  provider: IntegrationProvider;
+  started_at: string;
+  finished_at: string | null;
+  status: SyncStatus;
+  records_imported: number;
+  message: string;
+  error_details: Record<string, unknown>;
+}
+
+export interface WebhookEvent {
+  id: string;
+  provider: IntegrationProvider;
+  event_type: string;
+  external_id: string | null;
+  payload: Record<string, unknown>;
+  processed: boolean;
+  received_at: string;
+  processed_at: string | null;
+}
+
 export interface Database {
   public: {
     Tables: {
@@ -148,6 +238,13 @@ export interface Database {
       calls: { Row: Call; Insert: Omit<Call, 'id' | 'created_at'>; Update: Partial<Call> };
       reviews: { Row: Review; Insert: Omit<Review, 'id' | 'created_at'>; Update: Partial<Review> };
       monthly_reports: { Row: MonthlyReport; Insert: Omit<MonthlyReport, 'id' | 'created_at'>; Update: Partial<MonthlyReport> };
+      integration_accounts: { Row: IntegrationAccount; Insert: Omit<IntegrationAccount, 'id' | 'created_at'>; Update: Partial<IntegrationAccount> };
+      tracking_numbers: { Row: TrackingNumberRow; Insert: Omit<TrackingNumberRow, 'id' | 'created_at'>; Update: Partial<TrackingNumberRow> };
+      ad_campaigns: { Row: AdCampaign; Insert: Omit<AdCampaign, 'id' | 'created_at'>; Update: Partial<AdCampaign> };
+      ad_daily_metrics: { Row: AdDailyMetric; Insert: Omit<AdDailyMetric, 'id' | 'created_at'>; Update: Partial<AdDailyMetric> };
+      lead_attribution: { Row: LeadAttribution; Insert: Omit<LeadAttribution, 'id' | 'created_at'>; Update: Partial<LeadAttribution> };
+      integration_sync_logs: { Row: IntegrationSyncLog; Insert: Omit<IntegrationSyncLog, 'id'>; Update: Partial<IntegrationSyncLog> };
+      webhook_events: { Row: WebhookEvent; Insert: Omit<WebhookEvent, 'id' | 'received_at'>; Update: Partial<WebhookEvent> };
     };
   };
 }
