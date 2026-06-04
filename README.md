@@ -1,32 +1,81 @@
-# Octavia CRM
+# 365 Truck Repair CRM
 
-Русскоязычный CRM-прототип на React, TypeScript, Vite и Tailwind CSS.
+Русскоязычная CRM-система для 365 Truck Repair: управление лидами, ремонтными работами, fleet-клиентами, звонками, отзывами и отчетами по двум локациям в Illinois.
 
-## Возможности
+## Что внутри
 
-- Панель с метриками, задачами, встречами, сообщениями и быстрыми действиями.
-- Воронка сделок с поиском, фильтрами, сортировкой, drag-and-drop сменой этапа и CRUD.
-- Контакты в виде сетки и таблицы с карточкой, поиском и CRUD.
-- Календарь с режимами месяц, неделя и день, локальным созданием/редактированием/удалением событий.
-- Настройки профиля, ролей, языка и демо-данных.
-- Роли: администратор, менеджер, наблюдатель.
-- Локальный API-слой поверх `localStorage`, готовый к замене на backend.
-- Адаптивная навигация для desktop и mobile.
+- Next.js 14 App Router, TypeScript, Tailwind CSS, shadcn/ui, Recharts.
+- Страницы: `/dashboard`, `/leads`, `/leads/[id]`, `/jobs`, `/fleet`, `/calls`, `/reviews`, `/reports`, `/settings`.
+- Роли: владелец, маркетинг-менеджер, менеджер сервиса, администратор.
+- Локации: Channahon `630-277-3663`, Markham `815-641-4718`, Peaty Tire как источник кросс-рекомендаций.
+- Supabase PostgreSQL миграция с таблицами, enum-типами, RLS-политиками и seed-данными.
+- Typed Supabase client, бизнес-логика атрибуции лидов, follow-up очереди, пропущенных звонков и расчета выручки.
+- Twilio-заглушки для SMS и запросов отзывов.
 
-## Скрипты
+## Запуск
 
 ```bash
 npm install
 npm run dev
-npm run lint
-npm run build
 ```
 
-## Стек
+Открой `http://localhost:3000`.
 
-- React 19
-- TypeScript
-- Vite
-- Tailwind CSS
-- Radix UI
-- Framer Motion
+## Проверки
+
+```bash
+npm run lint
+npm run build
+npm audit --audit-level=moderate
+```
+
+В PowerShell на Windows может быть заблокирован `npm.ps1`. Тогда используй:
+
+```bash
+npm.cmd run lint
+npm.cmd run build
+```
+
+## Переменные окружения
+
+Скопируй `.env.local.example` в `.env.local` и заполни:
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+TWILIO_ACCOUNT_SID=
+TWILIO_AUTH_TOKEN=
+TWILIO_PHONE_NUMBER=
+CALLRAIL_API_KEY=
+```
+
+## Supabase
+
+Миграция находится в `supabase/migrations/001_initial_schema.sql`.
+
+Она создает:
+
+- `profiles`
+- `leads`
+- `jobs`
+- `fleet_clients`
+- `calls`
+- `reviews`
+- `monthly_reports`
+
+## Что можно добавить дальше
+
+- Реальную авторизацию Supabase Auth с переключением ролей в интерфейсе.
+- Подключение CallRail API для автоматического импорта звонков.
+- Полную Twilio-интеграцию: SMS follow-up, review request, уведомления о missed calls.
+- Формы создания/редактирования лидов, работ и fleet-клиентов вместо текущих TODO-кнопок.
+- Drag-and-drop для kanban-доски работ.
+- Экспорт отчетов в PDF через серверный генератор вместо `window.print()`.
+- CI/CD pipeline на GitHub Actions: lint, build, audit.
+
+## Что можно убрать позже
+
+- Старый архив `Kimi_Agent_универсальная CRM.zip`, если он больше не нужен в репозитории.
+- Неиспользуемые shadcn/ui компоненты, если проект останется компактным.
+- Demo seed-данные после подключения реальной базы.
